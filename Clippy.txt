@@ -1,0 +1,693 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinética Química con Clippy - Hardcore Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+        :root {
+            --cobalto: #0047AB;
+            --menta: #98FF98;
+            --menta-dark: #2DD4BF;
+            --oro: #FACC15;
+            --error: #EF4444;
+            --texto-dark: #0F172A;
+            --success: #22C55E;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #F1F5F9;
+            color: var(--texto-dark);
+            overflow-x: hidden;
+            transition: filter 0.5s ease, background-color 0.5s;
+        }
+
+        .blur-bg { filter: blur(8px); pointer-events: none; }
+
+        /* Navegación y Progreso */
+        .nav-btn { 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+        .nav-btn.completed {
+            background-color: var(--success) !important;
+            color: white !important;
+            border-color: #166534 !important;
+            box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
+        }
+        .nav-btn.locked {
+            background-color: #CBD5E1 !important;
+            color: #64748B !important;
+            cursor: not-allowed;
+            filter: grayscale(1);
+            opacity: 0.7;
+        }
+
+        .page-content { display: none; animation: slideUp 0.6s ease-out; }
+        .page-content.active { display: block; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Clippu UI */
+        #clippu-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        #clippu-sprite, .clippu-balloon { pointer-events: auto; }
+
+        .clippu-balloon {
+            position: absolute;
+            bottom: 110px;
+            right: 0;
+            width: 300px;
+            background: white;
+            border: 4px solid var(--cobalto);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--texto-dark);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            display: none;
+            opacity: 0;
+            transition: all 0.4s ease;
+            transform-origin: bottom right;
+            transform: scale(0.8) translateY(20px);
+        }
+
+        #clippu-sprite {
+            width: 124px;
+            height: 93px;
+            background-image: url('https://raw.githubusercontent.com/felixrieseberg/clippy/edb47a46c1f0d9b36436e8537013dc91e8ade89f/assets/animations/clippy/map.png');
+            image-rendering: pixelated;
+            cursor: pointer;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1));
+        }
+
+        /* Arbol de Flashcards */
+        .tree-container {
+            position: relative;
+            height: 650px;
+            background: radial-gradient(circle, #ffffff 0%, #e2e8f0 100%);
+            border-radius: 3rem;
+            border: 4px solid var(--cobalto);
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,71,171,0.1);
+        }
+
+        .node-card {
+            position: absolute;
+            width: 160px;
+            height: 100px;
+            perspective: 1000px;
+            z-index: 10;
+        }
+
+        .node-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .node-card.flipped .node-inner { transform: rotateY(180deg); }
+
+        .node-front, .node-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1.2rem;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            border: 3px solid var(--cobalto);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        .node-front { background: white; color: var(--cobalto); }
+        .node-back { background: var(--cobalto); color: white; transform: rotateY(180deg); font-size: 0.85rem; line-height: 1.3;}
+
+        /* Lab Canvas */
+        #lab-canvas { transition: box-shadow 0.3s ease; }
+        .hot-glow { box-shadow: 0 0 60px rgba(239, 68, 68, 0.6); }
+
+        /* Botones de Opción */
+        .option-btn {
+            background: white;
+            border: 2px solid #CBD5E1;
+            padding: 1.25rem;
+            border-radius: 1.25rem;
+            font-weight: 700;
+            color: var(--texto-dark);
+            transition: all 0.3s;
+            text-align: left;
+        }
+        .option-btn:hover:not(.correct):not(.wrong) {
+            transform: scale(1.02) translateX(5px);
+            border-color: var(--cobalto);
+            background: #F8FAFC;
+        }
+
+        .correct-anim { animation: pulseSuccess 0.5s infinite alternate; }
+        @keyframes pulseSuccess {
+            from { box-shadow: 0 0 0px var(--success); }
+            to { box-shadow: 0 0 20px var(--success); }
+        }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Estilos Slider */
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--cobalto);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+
+        /* Easter Egg Styles */
+        .molecular-chaos {
+            animation: screenShake 0.1s infinite;
+            background-color: #450a0a !important;
+        }
+        @keyframes screenShake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-1px, -2px) rotate(-1deg); }
+            40% { transform: translate(-3px, 0px) rotate(1deg); }
+            60% { transform: translate(3px, 2px) rotate(0deg); }
+            80% { transform: translate(1px, -1px) rotate(1deg); }
+            100% { transform: translate(-1px, 2px) rotate(-1deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-wrapper">
+        <!-- Nav -->
+        <nav class="bg-white border-b-4 border-cobalto sticky top-0 z-50 shadow-md">
+            <div class="max-w-6xl mx-auto px-6 flex justify-between items-center h-20">
+                <div class="flex items-center gap-3 cursor-pointer select-none" id="easter-egg-trigger">
+                    <span class="text-3xl">🧪</span>
+                    <h1 class="text-xl font-black text-cobalto tracking-tight uppercase">Cinética <span class="text-menta-dark italic">Master</span></h1>
+                </div>
+                <div class="flex gap-3" id="nav-list">
+                    <button onclick="navTo('inicio')" class="nav-btn px-5 py-2.5 rounded-2xl font-bold border-2 border-cobalto shadow-sm bg-white" id="btn-inicio">Inicio</button>
+                    <button onclick="navTo('teoria')" class="nav-btn locked px-5 py-2.5 rounded-2xl font-bold border-2 border-transparent" id="btn-teoria">Teoría</button>
+                    <button onclick="navTo('flashcards')" class="nav-btn locked px-5 py-2.5 rounded-2xl font-bold border-2 border-transparent" id="btn-flashcards">Factores</button>
+                    <button onclick="navTo('lab')" class="nav-btn locked px-5 py-2.5 rounded-2xl font-bold border-2 border-transparent" id="btn-lab">Laboratorio</button>
+                    <button onclick="navTo('test')" class="nav-btn locked px-5 py-2.5 rounded-2xl font-bold border-2 border-transparent" id="btn-test">Examen</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-4xl mx-auto p-6 mt-8 pb-40">
+            
+            <!-- INICIO -->
+            <section id="page-inicio" class="page-content active">
+                <div class="bg-white p-12 rounded-[3rem] shadow-2xl border-b-[12px] border-cobalto">
+                    <h2 class="text-5xl font-black text-cobalto mb-6">Velocidad de Reacción</h2>
+                    <p class="text-xl text-slate-700 mb-10 leading-relaxed font-medium">¿Alguna vez te has preguntado por qué la leche se corta fuera de la nevera? ¡Es cinética química básica, terrícola! Clippu te enseñará a dominar el tiempo atómico.</p>
+                    
+                    <div class="bg-slate-100 p-10 rounded-[2rem] border-4 border-dashed border-slate-300 relative">
+                        <div class="absolute -top-5 left-8 bg-oro text-slate-900 px-6 py-2 rounded-full font-black text-sm uppercase tracking-widest shadow-lg border-2 border-white">
+                            Repaso Rápido
+                        </div>
+                        <p class="font-black text-2xl mb-8 text-slate-800">Si enfriamos un sistema químico, ¿qué le pasa a la velocidad?</p>
+                        <div class="grid gap-4">
+                            <button onclick="checkStep(this, false, 'inicio', '¡Uff! No. Si hace frío, las moléculas quieren cobijarse, no correr.', 'angry')" class="option-btn">Se acelera como un rayo</button>
+                            <button onclick="checkStep(this, true, 'inicio', '¡Exacto! El frío las deja tiesas. ¡Primera pestaña completada!', 'wave')" class="option-btn">Se vuelve lenta y perezosa</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TEORÍA -->
+            <section id="page-teoria" class="page-content">
+                <div class="bg-white p-10 rounded-[3rem] shadow-2xl border-2 border-slate-100">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="p-4 bg-cobalto text-white rounded-2xl text-2xl shadow-lg">📚</div>
+                        <h2 class="text-4xl font-black text-slate-900 tracking-tight">Conceptos Fundamentales</h2>
+                    </div>
+                    
+                    <div id="teoria-content" class="grid md:grid-cols-2 gap-6 mb-12">
+                    </div>
+
+                    <div id="teoria-test-container" class="bg-slate-900 p-10 rounded-[3rem] text-white border-b-8 border-cobalto relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-cobalto/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                        <h3 class="text-oro font-black mb-6 uppercase tracking-widest text-sm flex items-center gap-2">
+                            <span class="w-2 h-2 bg-oro rounded-full animate-pulse"></span>
+                            Validación de Datos
+                        </h3>
+                        <div id="teoria-question-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FACTORES -->
+            <section id="page-flashcards" class="page-content">
+                <h2 class="text-3xl font-black text-cobalto mb-8 flex items-center gap-3">
+                    Factores de Influencia <span class="text-sm font-bold bg-oro text-slate-900 px-4 py-1 rounded-full shadow-sm">INTERACTIVO</span>
+                </h2>
+                <div class="tree-container" id="tree-box">
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none" id="tree-lines"></svg>
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white border-[10px] border-cobalto rounded-full flex flex-col items-center justify-center font-black shadow-2xl z-20 text-center p-6 group cursor-pointer hover:scale-105 transition-all">
+                        <span class="text-4xl mb-2">🌟</span>
+                        <span class="text-cobalto uppercase text-sm">Centro de Control</span>
+                    </div>
+                    <div id="tree-nodes-target"></div>
+                </div>
+                
+                <div class="mt-12 bg-white p-10 rounded-[3rem] shadow-xl border-4 border-menta-dark">
+                    <p class="font-black text-2xl mb-6 text-slate-800">Al triturar un reactivo sólido, ¿qué pasa?</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <button onclick="checkStep(this, true, 'flashcards', '¡Eso! Más área expuesta significa más superficie para chocar.', 'wave')" class="option-btn">Aumenta la velocidad por mayor área</button>
+                        <button onclick="checkStep(this, false, 'flashcards', '¡Falso! El polvo es más reactivo que el bloque.', 'angry')" class="option-btn">Se vuelve inerte y no reacciona</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LAB -->
+            <section id="page-lab" class="page-content">
+                <div class="bg-white p-10 rounded-[3rem] shadow-2xl border-4 border-slate-100">
+                    <div class="flex justify-between items-center mb-10">
+                        <div>
+                            <h2 class="text-4xl font-black text-cobalto">Acelerador Atómico</h2>
+                            <p class="text-slate-500 font-bold">Ajusta el dial para ver el caos molecular.</p>
+                        </div>
+                        <div id="temp-badge" class="bg-oro text-slate-900 px-8 py-4 rounded-2xl font-black text-3xl shadow-lg border-2 border-white">25°C</div>
+                    </div>
+
+                    <div class="grid lg:grid-cols-3 gap-10">
+                        <div class="space-y-8">
+                            <div class="bg-slate-50 p-8 rounded-3xl shadow-inner border-2 border-slate-200">
+                                <label class="block font-black text-xs uppercase tracking-widest text-slate-500 mb-6">Regulador Térmico</label>
+                                <input type="range" id="temp-slider" min="1" max="100" value="25" oninput="updateLabParams()" class="w-full h-4 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-cobalto">
+                                <div class="flex justify-between mt-4 text-[11px] font-black text-slate-400">
+                                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">FRIO</span>
+                                    <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">PLASMA</span>
+                                </div>
+                            </div>
+                            
+                            <div id="lab-status-card" class="bg-cobalto p-8 rounded-3xl text-white shadow-xl border-b-8 border-black/20">
+                                <span class="text-xs font-bold uppercase opacity-80 tracking-widest">Monitor de Energía</span>
+                                <div id="status-display" class="text-3xl font-black mt-1 uppercase">ESTABLE</div>
+                            </div>
+
+                            <button onclick="finishLab()" class="w-full bg-menta-dark hover:bg-emerald-500 text-slate-900 font-black py-6 rounded-3xl text-xl shadow-xl hover:-translate-y-1 transition-all border-b-4 border-emerald-700">MARCAR COMO HECHO ✅</button>
+                        </div>
+                        <div class="lg:col-span-2 h-[450px] bg-slate-950 rounded-[3rem] relative overflow-hidden border-[12px] border-slate-100 shadow-2xl" id="lab-canvas">
+                            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#ffffff 1.5px, transparent 1.5px); background-size: 40px 40px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TEST -->
+            <section id="page-test" class="page-content">
+                <div class="bg-white p-12 rounded-[4rem] shadow-2xl border-t-[20px] border-error">
+                    <div class="text-center mb-12">
+                        <div class="text-7xl mb-4">🧠</div>
+                        <h2 class="text-4xl font-black text-slate-900">CERTIFICACIÓN CLIPPU</h2>
+                        <p class="text-slate-500 font-bold text-lg">Cuestionario final aleatorio generado desde la base de datos.</p>
+                    </div>
+                    
+                    <div id="final-test-container" class="space-y-10"></div>
+                    
+                    <button onclick="submitFinalTest()" class="mt-12 w-full bg-slate-900 text-white font-black py-10 rounded-[2.5rem] text-3xl shadow-2xl hover:bg-black transition-all transform hover:scale-[1.02]">
+                        ENTREGAR Y SOBREVIVIR
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Overlay de Resultado -->
+    <div id="test-result-overlay" class="fixed inset-0 bg-slate-900/95 z-[10000] hidden flex-col items-center justify-center p-6 text-center opacity-0 transition-opacity duration-500 backdrop-blur-sm">
+        <div id="overlay-content" class="scale-0 transition-transform duration-700 w-full max-w-4xl p-12 rounded-[4rem] bg-white border-b-[12px] border-cobalto shadow-2xl">
+            <h1 id="overlay-title" class="text-6xl font-black mb-6 text-cobalto"></h1>
+            <p id="overlay-msg" class="text-3xl mb-10 font-bold text-slate-700"></p>
+            
+            <div id="clippy-quote" class="bg-slate-100 p-10 rounded-[3rem] italic text-2xl border-4 border-dashed border-slate-300 mb-12 font-bold text-slate-800 leading-relaxed shadow-inner">
+            </div>
+            
+            <button id="overlay-btn" class="bg-oro text-slate-900 font-black px-16 py-6 rounded-full text-3xl hover:scale-105 shadow-xl transition-all border-b-8 border-yellow-600 active:translate-y-1">
+                REINTENTAR
+            </button>
+        </div>
+    </div>
+
+    <!-- CLIPPY -->
+    <div id="clippu-container">
+        <div class="clippu-balloon" id="clippu-msg"></div>
+        <div id="clippu-sprite" class="hover:scale-110 transition active:scale-95"></div>
+    </div>
+
+    <script>
+        const dbTeoria = [
+            { id: 1, titulo: "⚡ Energía de Activación", texto: "Es la barrera energética mínima que deben superar los reactivos. Imagínalo como el peaje que hay que pagar para que empiece la fiesta.", pregunta: "¿Qué es la Energía de Activación?", opciones: ["El peaje energético mínimo", "El calor total del sistema", "La energía de los productos"], correcta: 0 },
+            { id: 2, titulo: "🎯 Colisión Eficaz", texto: "Solo los choques con la orientación geométrica correcta y energía suficiente producen reacción. ¡Un abrazo de lado no cuenta!", pregunta: "¿Qué define a una colisión eficaz?", opciones: ["Cualquier choque rápido", "Energía y orientación correctas", "Que ocurra en el vacío"], correcta: 1 },
+            { id: 3, titulo: "🏗️ Catalizadores", texto: "Sustancias que bajan la montaña de energía sin consumirse. Son como el GPS que te encuentra un atajo por el bosque.", pregunta: "¿Qué hace un catalizador?", opciones: ["Aumenta la temperatura", "Consume los reactivos", "Baja la energía de activación"], correcta: 2 },
+            { id: 4, titulo: "🌡️ Ley de Arrhenius", texto: "A mayor temperatura, más moléculas superan la barrera de energía. La velocidad crece exponencialmente con el calor.", pregunta: "Según Arrhenius, si sube la temperatura...", opciones: ["La velocidad sube exponencialmente", "La reacción se detiene", "El catalizador muere"], correcta: 0 },
+            { id: 5, titulo: "🧱 Estado de Transición", texto: "Es el punto de máxima energía donde los enlaces se rompen y otros se forman. Es un equilibrio inestable y fugaz.", pregunta: "¿Qué ocurre en el estado de transición?", opciones: ["Se alcanza la estabilidad", "Máxima energía y ruptura de enlaces", "Los productos se enfrían"], correcta: 1 },
+            { id: 6, titulo: "🧪 Velocidad de Reacción", texto: "Representa el cambio en la concentración de reactivos o productos por unidad de tiempo. ¡Es el velocímetro de la química!", pregunta: "¿Cómo se define la velocidad de reacción?", opciones: ["Cambio de concentración en el tiempo", "Cantidad de calor liberado", "Masa total de los recipientes"], correcta: 0 }
+        ];
+
+        let unlocked = { inicio: true, teoria: false, flashcards: false, lab: false, test: false };
+        let completed = { inicio: false, teoria: false, flashcards: false, lab: false, test: false };
+        let particles = [];
+        let yappingTimeout = null;
+        let clippuClickCount = 0;
+        let titleClickCount = 0;
+        let titleClickTimer = null;
+
+        const clippuMsg = document.getElementById('clippu-msg');
+        const sprite = document.getElementById('clippu-sprite');
+
+        const anims = {
+            talk: [{c:1, r:0}, {c:2, r:0}, {c:1, r:0}, {c:0, r:0}],
+            wave: [{c:1, r:10}, {c:2, r:10}, {c:3, r:10}, {c:4, r:10}, {c:5, r:10}, {c:0, r:0}],
+            think: [{c:1, r:3}, {c:2, r:3}, {c:3, r:3}, {c:0, r:0}],
+            angry: [{c:1, r:4}, {c:2, r:4}, {c:1, r:4}, {c:0, r:0}],
+            print: [{c:1, r:14}, {c:2, r:14}, {c:3, r:14}, {c:4, r:14}, {c:0, r:0}]
+        };
+
+        function playAnim(key) {
+            let frames = anims[key];
+            if(!frames) return;
+            let i = 0;
+            let itv = setInterval(() => {
+                sprite.style.backgroundPosition = `-${frames[i].c * 124}px -${frames[i].r * 93}px`;
+                i++;
+                if (i >= frames.length) { clearInterval(itv); sprite.style.backgroundPosition = '0 0'; }
+            }, 110);
+        }
+
+        function yapper(text, mood = 'talk', time = 6000) {
+            clearTimeout(yappingTimeout);
+            clippuMsg.innerHTML = `<span class="text-xs uppercase text-cobalto font-black opacity-60">Mensaje de Clippu</span><br><p class="mt-1">${text}</p>`;
+            clippuMsg.style.display = 'block';
+            setTimeout(() => {
+                clippuMsg.style.opacity = '1';
+                clippuMsg.style.transform = 'scale(1) translateY(0)';
+            }, 50);
+            playAnim(mood);
+            yappingTimeout = setTimeout(() => {
+                clippuMsg.style.opacity = '0';
+                clippuMsg.style.transform = 'scale(0.8) translateY(20px)';
+                setTimeout(() => clippuMsg.style.display = 'none', 500);
+            }, time);
+        }
+
+        sprite.onclick = () => {
+            clippuClickCount++;
+            if (clippuClickCount >= 5) {
+                yapper("¡OYE! Preocupate más con tu tarea que en darme tantos clicks, me mareo.", 'angry');
+                clippuClickCount = 0;
+            } else {
+                const tips = [
+                    "¿Sabías que los catalizadores no cambian el equilibrio?",
+                    "¡Ojo! La velocidad siempre depende de la temperatura.",
+                    "Si pulverizas el reactivo, ¡BOOM! Más velocidad.",
+                    "El complejo activado es como yo: único e inestable.",
+                    "Frase de Clippu: 'Parece que estás intentando aprender química, ¿necesitas ayuda?'",
+                    "Frase de Clippu: '¡Las moléculas tienen más energía que yo un lunes por la mañana!'"
+                ];
+                yapper(tips[Math.floor(Math.random()*tips.length)], 'think');
+            }
+        };
+
+        // EASTER EGG TRIGGER
+        document.getElementById('easter-egg-trigger').onclick = () => {
+            titleClickCount++;
+            clearTimeout(titleClickTimer);
+            titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 2000);
+
+            if(titleClickCount === 7) {
+                document.body.classList.add('molecular-chaos');
+                yapper("¡SISTEMA CRÍTICO! Has activado el modo de energía infinita. ¡MIRA EL LABORATORIO!", 'angry', 8000);
+                const slider = document.getElementById('temp-slider');
+                if(slider) {
+                    slider.value = 100;
+                    updateLabParams();
+                }
+                setTimeout(() => {
+                    document.body.classList.remove('molecular-chaos');
+                }, 5000);
+                titleClickCount = 0;
+            }
+        };
+
+        function navTo(id) {
+            if (!unlocked[id]) {
+                const btn = document.getElementById(`btn-${id}`);
+                btn.classList.add('shake');
+                setTimeout(() => btn.classList.remove('shake'), 400);
+                yapper("¡Zonas bloqueadas! Avanza linealmente.", 'angry');
+                return;
+            }
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('ring-4', 'ring-cobalto/40'));
+            document.getElementById(`page-${id}`).classList.add('active');
+            document.getElementById(`btn-${id}`).classList.add('ring-4', 'ring-cobalto/40');
+            if (id === 'teoria') prepareTeoria();
+            if (id === 'flashcards') setTimeout(buildTree, 100);
+            if (id === 'test') renderFinalTest();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function prepareTeoria() {
+            const container = document.getElementById('teoria-content');
+            const shuffled = [...dbTeoria].sort(() => Math.random() - 0.5);
+            container.innerHTML = shuffled.map(item => `
+                <div class="group p-6 bg-white border-2 border-slate-200 rounded-3xl hover:shadow-xl hover:border-cobalto transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-black uppercase tracking-widest text-cobalto bg-blue-50 px-3 py-1 rounded-full border border-blue-200">Lección</span>
+                        <span class="text-slate-300">#0${item.id}</span>
+                    </div>
+                    <h4 class="font-black text-slate-900 text-xl mb-3">${item.titulo}</h4>
+                    <p class="text-slate-600 font-medium leading-relaxed">${item.texto}</p>
+                </div>
+            `).join('');
+            const randomPick = shuffled[Math.floor(Math.random() * shuffled.length)];
+            const qBox = document.getElementById('teoria-question-box');
+            qBox.innerHTML = `
+                <p class="font-bold text-2xl mb-8 leading-tight text-white">${randomPick.pregunta}</p>
+                <div class="grid gap-4">
+                    ${randomPick.opciones.map((opt, i) => `
+                        <button onclick="checkStep(this, ${i === randomPick.correcta}, 'teoria', '¡Excelente! Has asimilado la base de datos.', 'wave')" 
+                                class="option-btn !bg-white/10 !text-white border-white/20 hover:!bg-white hover:!text-slate-900 !border-0 shadow-lg">
+                            ${opt}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function checkStep(btn, isCorrect, page, msg, mood = 'talk') {
+            if (isCorrect) {
+                btn.classList.add('correct', '!bg-emerald-500', '!text-white', '!border-emerald-700', 'correct-anim');
+                yapper(msg, mood);
+                completed[page] = true;
+                markCompleted(page);
+                unlockNext(page);
+            } else {
+                btn.classList.add('wrong', '!bg-rose-500', '!text-white', '!border-rose-700', 'shake');
+                yapper("¡Error en la matriz! Revisa bien el contenido.", 'angry');
+                setTimeout(() => btn.classList.remove('shake'), 500);
+            }
+        }
+
+        function markCompleted(id) {
+            const btn = document.getElementById(`btn-${id}`);
+            if(btn) {
+                btn.classList.add('completed');
+                btn.innerHTML = `COMPLETO <span class="ml-1">✓</span>`;
+            }
+        }
+
+        function unlockNext(curr) {
+            const flow = ['inicio', 'teoria', 'flashcards', 'lab', 'test'];
+            let idx = flow.indexOf(curr);
+            if (idx < flow.length - 1) {
+                const nextId = flow[idx+1];
+                unlocked[nextId] = true;
+                const nextBtn = document.getElementById(`btn-${nextId}`);
+                if(nextBtn) {
+                    nextBtn.classList.remove('locked');
+                    nextBtn.classList.add('border-cobalto', 'bg-white');
+                }
+            }
+        }
+
+        function buildTree() {
+            const target = document.getElementById('tree-nodes-target');
+            const svg = document.getElementById('tree-lines');
+            if(!target || !svg) return;
+            target.innerHTML = ''; svg.innerHTML = '';
+            const data = [
+                {t: "Temperatura", b: "A más calor, más energía cinética. ¡Choques locos!"},
+                {t: "Concentración", b: "Más moléculas en el mismo espacio = más colisiones."},
+                {t: "Catalizadores", b: "Reducen la montaña de energía. ¡Es el atajo VIP!"},
+                {t: "Área de Contacto", b: "Hacer polvo el reactivo expone más átomos al ataque."},
+                {t: "Presión", b: "En gases, apretar todo hace que se choquen por obligación."},
+                {t: "Naturaleza", b: "Hay reactivos que simplemente se llevan mejor."}
+            ];
+            const containerBox = document.getElementById('tree-box').getBoundingClientRect();
+            const cx = containerBox.width / 2; const cy = containerBox.height / 2;
+            data.forEach((item, i) => {
+                const angle = (i / data.length) * Math.PI * 2; const dist = 220;
+                const x = cx + Math.cos(angle) * dist - 80; const y = cy + Math.sin(angle) * dist - 50;
+                const card = document.createElement('div');
+                card.className = "node-card"; card.style.left = x + 'px'; card.style.top = y + 'px';
+                card.innerHTML = `<div class="node-inner" onclick="this.parentElement.classList.toggle('flipped');"><div class="node-front">${item.t}</div><div class="node-back">${item.b}</div></div>`;
+                target.appendChild(card);
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", cx); line.setAttribute("y1", cy); line.setAttribute("x2", x + 80); line.setAttribute("y2", y + 50);
+                line.setAttribute("stroke", "#0047AB"); line.setAttribute("stroke-width", "4"); line.setAttribute("stroke-dasharray", "10,5"); line.setAttribute("opacity", "0.3");
+                svg.appendChild(line);
+            });
+        }
+
+        function initLab() {
+            const canvas = document.getElementById('lab-canvas');
+            particles = [];
+            for(let i=0; i<45; i++) {
+                const d = document.createElement('div');
+                d.className = "absolute w-4 h-4 rounded-full border-2 border-white/40";
+                canvas.appendChild(d);
+                particles.push({ el: d, x: Math.random() * 92, y: Math.random() * 92, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2 });
+            }
+        }
+
+        function updateLabParams() {
+            const slider = document.getElementById('temp-slider');
+            const val = parseInt(slider.value);
+            if(val > 80) yapper("¡CUIDADO! ¡Está demasiado caliente!", "angry", 2000);
+            else if(val < 10) yapper("Brrr... Esto está casi congelado.", "think", 2000);
+        }
+
+        function animateLab() {
+            const slider = document.getElementById('temp-slider');
+            const val = slider ? parseInt(slider.value) : 25;
+            const speedMultiplier = (val / 15) + 0.2;
+            const badge = document.getElementById('temp-badge');
+            if(badge) badge.innerText = `${val * 10}°C`;
+            const statusCard = document.getElementById('lab-status-card');
+            
+            particles.forEach(p => {
+                p.x += p.vx * speedMultiplier; p.y += p.vy * speedMultiplier;
+                if(p.x < 0 || p.x > 96) p.vx *= -1; if(p.y < 0 || p.y > 96) p.vy *= -1;
+                p.el.style.left = p.x + '%'; p.el.style.top = p.y + '%';
+                p.el.style.backgroundColor = `hsl(${220 - (val * 2.2)}, 100%, 60%)`;
+            });
+
+            if (val > 80) {
+                document.getElementById('lab-canvas').classList.add('hot-glow');
+                if(statusCard) statusCard.style.backgroundColor = '#EF4444';
+                const disp = document.getElementById('status-display');
+                if(disp) disp.innerText = "¡CRÍTICO!";
+            } else {
+                document.getElementById('lab-canvas').classList.remove('hot-glow');
+                if(statusCard) statusCard.style.backgroundColor = '#0047AB';
+                const disp = document.getElementById('status-display');
+                if(disp) disp.innerText = val > 45 ? "ACTIVO" : "ESTABLE";
+            }
+            requestAnimationFrame(animateLab);
+        }
+
+        function finishLab() {
+            yapper("¡Prueba superada! Vamos al examen final.", "print");
+            completed.lab = true; markCompleted('lab'); unlockNext('lab'); navTo('test');
+        }
+
+        function renderFinalTest() {
+            const container = document.getElementById('final-test-container');
+            container.innerHTML = dbTeoria.map((q, idx) => `
+                <div class="bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-200">
+                    <p class="text-2xl font-black text-slate-900 mb-6">${idx + 1}. ${q.pregunta}</p>
+                    <div class="grid gap-3">
+                        ${q.opciones.map((opt, i) => `
+                            <label class="flex items-center p-4 bg-white border-2 border-slate-200 rounded-2xl cursor-pointer hover:border-cobalto transition-all has-[:checked]:border-cobalto has-[:checked]:bg-blue-50">
+                                <input type="radio" name="q${idx}" value="${i}" class="w-6 h-6 accent-cobalto mr-4">
+                                <span class="font-bold text-slate-700">${opt}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function submitFinalTest() {
+            let score = 0;
+            dbTeoria.forEach((q, idx) => {
+                const selected = document.querySelector(`input[name="q${idx}"]:checked`);
+                if(selected && parseInt(selected.value) === q.correcta) score++;
+            });
+
+            const overlay = document.getElementById('test-result-overlay');
+            const content = document.getElementById('overlay-content');
+            const title = document.getElementById('overlay-title');
+            const msg = document.getElementById('overlay-msg');
+            const quote = document.getElementById('clippy-quote');
+            const btn = document.getElementById('overlay-btn');
+
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            setTimeout(() => {
+                overlay.style.opacity = '1';
+                content.style.transform = 'scale(1)';
+            }, 50);
+
+            if(score === dbTeoria.length) {
+                title.innerText = "¡CIENTÍFICO NIVEL DIOS! 👑";
+                msg.innerText = "Puntuación perfecta. Las moléculas te temen.";
+                quote.innerText = "Clippu dice: '¡Increíble! Has superado mi base de datos. Toma tu doctorado imaginario.'";
+                btn.innerText = "REINICIAR";
+                btn.onclick = () => location.reload();
+            } else {
+                title.innerText = "ERROR EXPERIMENTAL 💀";
+                msg.innerText = `Has obtenido ${score}/${dbTeoria.length} aciertos.`;
+                quote.innerText = "Clippu dice: 'Parece que tu energía de activación es muy baja hoy. ¡Estudia más!'";
+                btn.innerText = "REINTENTAR";
+                btn.onclick = () => {
+                    overlay.style.opacity = '0';
+                    content.style.transform = 'scale(0)';
+                    setTimeout(() => overlay.classList.add('hidden'), 500);
+                };
+            }
+        }
+
+        window.onload = () => {
+            initLab();
+            animateLab();
+            yapper("Hola, soy Clippu. ¡Toca mi logo 7 veces si quieres ver el caos real!", "wave", 8000);
+        };
+    </script>
+</body>
+</html>
+
+```
