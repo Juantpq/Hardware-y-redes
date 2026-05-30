@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HardQuest – Domina tu PC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════ CSS VARIABLES (VIBRANTES) ═══════════════ */
+:root {
+  --java: #ff9800; --java2: #ff5722;
+  --accent: #00ffcc; --accent2: #00bfff; --accent3: #ff007f; --accent4: #ff3366;
+  
+  /* Fondos oscuros con tonos azulados/púrpuras profundos */
+  --bg-grad: linear-gradient(-45deg, #090a0f, #10162a, #1a0b2e, #0f2027);
+  --bg3: rgba(13, 22, 41, 0.7);
+  
+  /* Glassmorphism para las tarjetas */
+  --surface: rgba(17, 24, 39, 0.65); 
+  --surface2: rgba(26, 37, 56, 0.75); 
+  --surface3: rgba(30, 45, 69, 0.85);
+  
+  --border: rgba(0, 255, 204, 0.5); 
+  --border2: rgba(0, 180, 216, 0.4);
+  
+  --text: #ffffff; --text-muted: #a3c2d1;
+  --shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+  --glow: 0 0 25px rgba(0, 255, 204, 0.4), inset 0 0 15px rgba(0, 255, 204, 0.1);
+  --glow-java: 0 0 25px rgba(255, 152, 0, 0.4);
+  
+  --trans: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --font-ui: 'Outfit', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  --radius: 22px; --radius-sm: 12px;
+}
+
+[data-theme="light"] {
+  --bg-grad: linear-gradient(-45deg, #f0f4ff, #e6ecf8, #dce4f5, #e0c3fc);
+  --bg3: rgba(220, 228, 245, 0.7);
+  --surface: rgba(255, 255, 255, 0.7); 
+  --surface2: rgba(245, 247, 255, 0.8); 
+  
+  --border: rgba(0, 180, 216, 0.6);
+  --text: #0d1629; --text-muted: #334b61;
+  --shadow: 0 15px 40px rgba(0, 180, 216, 0.25);
+  --glow: 0 0 30px rgba(0, 212, 170, 0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+/* ── ANIMACIÓN DEL FONDO ── */
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-grad);
+  background-size: 400% 400%;
+  animation: moveBackground 15s ease infinite;
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: color 0.3s ease;
+}
+
+@keyframes moveBackground {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb { background: var(--accent2); border-radius: 10px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── AMBIENT LAYER ── */
+.ambient-layer { 
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none; 
+  z-index: -1; 
+  overflow: hidden; 
+}
+
+/* ANIMACIONES AMBIENTALES */
+.floating-icon {
+  position: absolute;
+  font-size: 2.5rem;
+  opacity: 0.15;
+  color: #fff;
+  animation: floatUp linear infinite;
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+@keyframes floatUp {
+  0% { transform: translateY(110vh) rotate(0deg) scale(0.8); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(-10vh) rotate(360deg) scale(1.3); opacity: 0; }
+}
+
+/* ── SCREENS ── */
+.screen { display: none; position: relative; z-index: 1; min-height: 100vh; }
+.screen.active { display: block; animation: screenIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes screenIn { from { opacity: 0; transform: scale(0.95) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+#screenNick.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+/* ══════════════════════════════════
+   GLASSMORPHISM CARDS (COMÚN)
+══════════════════════════════════ */
+.nick-card, .world-card, .game-card, .modal-card, .pass-card {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow), var(--glow);
+}
+
+/* ══════════════════════════════════
+   NICK SCREEN
+══════════════════════════════════ */
+#screenNick { min-height: 100vh; padding: 2rem; }
+.nick-card {
+  border-radius: 32px; padding: 3.5rem 3rem; max-width: 500px; width: 100%; text-align: center;
+  animation: scaleInBounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes scaleInBounce { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+
+.nick-logo { font-size: 5.5rem; margin-bottom: 1rem; filter: drop-shadow(0 10px 15px rgba(255, 152, 0, 0.5)); animation: floatLogo 3s ease-in-out infinite; }
+@keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+
+.nick-title { font-size: 2.8rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.03em; text-shadow: 0 0 15px rgba(255,255,255,0.3); }
+.nick-title span { color: var(--java); text-shadow: 0 0 20px var(--java); }
+.nick-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 2.5rem; line-height: 1.6; }
+.nick-input {
+  width: 100%; background: rgba(0,0,0,0.4); border: 2px solid var(--border); border-radius: 16px;
+  padding: 1rem 1.5rem; font-family: var(--font-ui); font-size: 1.1rem; color: #fff; margin-bottom: 1rem;
+  outline: none; transition: all 0.3s ease; text-align: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+.nick-input:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent), inset 0 0 15px var(--accent); transform: scale(1.02); }
+
+/* ══════════════════════════════════
+   HOME SCREEN
+══════════════════════════════════ */
+.home-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 3rem;
+  background: rgba(13, 22, 41, 0.4); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 10;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+.brand { display: flex; align-items: center; gap: 0.8rem; transition: var(--trans); cursor: pointer; }
+.brand:hover { transform: scale(1.05); filter: drop-shadow(0 0 10px var(--java)); }
+.brand-icon { font-size: 2rem; }
+.brand-name { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.brand-name span { color: var(--java); }
+.header-controls { display: flex; gap: 0.8rem; align-items: center; }
+.ctrl-btn {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 12px;
+  width: 44px; height: 44px; font-size: 1.2rem; cursor: pointer; transition: var(--trans);
+  display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);
+}
+.ctrl-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; transform: translateY(-4px) rotate(8deg); box-shadow: 0 8px 20px rgba(0,255,204,0.4); }
+.nick-display {
+  background: linear-gradient(45deg, var(--surface2), rgba(0,212,170,0.2)); border: 1px solid var(--accent);
+  border-radius: 100px; padding: 0.5rem 1.2rem; font-size: 0.9rem; font-weight: 800; color: var(--text);
+  box-shadow: 0 0 15px rgba(0,212,170,0.2); text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* HERO */
+.hero { text-align: center; padding: 5rem 2rem 3rem; position: relative; }
+.hero-title { font-size: clamp(3rem, 8vw, 6rem); font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 1rem; text-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.hero-title .java-color { color: var(--java); text-shadow: 0 0 30px rgba(255,152,0,0.5); }
+.hero-desc { max-width: 600px; margin: 0 auto 3rem; color: var(--text-muted); font-size: 1.1rem; line-height: 1.8; }
+
+/* WORLDS GRID */
+.section-header { max-width: 1200px; margin: 0 auto; padding: 3rem 2rem 1rem; display: flex; align-items: center; justify-content: center; }
+.section-header h2 { font-size: 1.8rem; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 0.1em; text-shadow: 0 0 15px var(--accent); }
+.worlds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto; padding: 1rem 2rem 5rem; }
+
+.world-card {
+  border-radius: var(--radius); padding: 2.5rem 2rem; cursor: pointer; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: flex-start;
+  border: 2px solid var(--border);
+  background: linear-gradient(145deg, var(--surface), rgba(10, 15, 25, 0.9));
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.world-card::before {
+  content: ''; position: absolute; inset: 0; 
+  background: radial-gradient(circle at top right, var(--wc, var(--accent)) 0%, transparent 60%);
+  opacity: 0.1; transition: opacity 0.4s ease;
+}
+.world-card:hover { 
+  transform: translateY(-12px) scale(1.03); 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 30px var(--wc, var(--accent)); 
+  border-color: var(--wc, var(--accent)); 
+}
+.world-card:hover::before { opacity: 0.3; }
+
+.world-number { font-size: 0.8rem; font-weight: 900; color: var(--wc, var(--accent)); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.8rem; background: rgba(0,0,0,0.4); padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.world-icon-wrap { font-size: 3.5rem; margin-bottom: 1rem; display: block; filter: drop-shadow(0 5px 15px var(--wc, rgba(0,0,0,0.5))); transition: var(--trans); }
+.world-card:hover .world-icon-wrap { transform: scale(1.2) rotate(8deg); }
+.world-name { font-size: 1.4rem; font-weight: 900; margin-bottom: 0.8rem; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.world-desc { font-size: 0.95rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1.5rem; flex-grow: 1; }
+
+.world-btn {
+  background: rgba(0,0,0,0.5); border: 1px solid var(--wc, var(--accent)); color: #fff;
+  border-radius: 12px; padding: 0.8rem 1.5rem; font-size: 0.95rem; font-weight: bold;
+  cursor: pointer; transition: var(--trans); display: flex; align-items: center; gap: 0.5rem;
+  width: 100%; justify-content: center; margin-top: auto;
+}
+.world-card:hover .world-btn { background: var(--wc, var(--accent)); color: #000; box-shadow: 0 5px 15px var(--wc, var(--accent)); }
+
+/* ══════════════════════════════════
+   PRIMARY BTN
+══════════════════════════════════ */
+.primary-btn {
+  display: block; width: 100%; position: relative; overflow: hidden;
+  background: linear-gradient(45deg, var(--accent), var(--accent2), var(--java)); background-size: 200% 200%;
+  color: #000; border: none; border-radius: 18px; padding: 1.2rem 2.5rem; font-size: 1.1rem; font-weight: 900;
+  font-family: var(--font-ui); cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 25px rgba(0, 212, 170, 0.5); letter-spacing: 1px; text-transform: uppercase;
+}
+.primary-btn:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 15px 35px rgba(0, 212, 170, 0.7); }
+
+/* ══════════════════════════════════
+   LESSON / CONTENT WRAP
+══════════════════════════════════ */
+.lesson-wrap { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+.back-btn {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 1.5rem;
+  color: #fff; font-family: var(--font-ui); font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: var(--trans);
+  margin-bottom: 2.5rem; display: inline-flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(5px);
+}
+.back-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); transform: translateX(-5px); box-shadow: 0 0 20px var(--accent); }
+.lesson-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 1rem; letter-spacing: -0.02em; text-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.lesson-intro { color: var(--text-muted); line-height: 1.8; margin-bottom: 2.5rem; font-size: 1.1rem; }
+
+/* ══════════════════════════════════
+   MATCH LIST (Para el Ranking)
+══════════════════════════════════ */
+.match-col { display: flex; flex-direction: column; gap: 0.8rem; }
+.match-item {
+  background: rgba(0,0,0,0.5); border: 2px solid var(--border); border-radius: 14px;
+  padding: 1rem 1.2rem; font-size: 1.1rem; font-weight: bold; transition: var(--trans);
+}
+
+.concept-chip {
+  background: rgba(0,0,0,0.4); border: 2px solid var(--border2); border-radius: 18px; padding: 1.5rem;
+  transition: var(--trans); backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.c-name { font-size: 1rem; font-weight: 900; color: var(--accent); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+.c-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+
+/* ══════════════════════════════════
+   GAME OPTIONS (Trivia)
+══════════════════════════════════ */
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;}
+@media(max-width:600px){ .options-grid { grid-template-columns: 1fr; } }
+.option-btn {
+  background: rgba(0,0,0,0.4); border: 2px solid var(--border); border-radius: 16px;
+  padding: 1rem 1.2rem; text-align: left; font-family: var(--font-ui); font-size: 1rem; font-weight: 600;
+  color: #fff; cursor: pointer; transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex; align-items: center; gap: 1rem; line-height: 1.5;
+}
+.option-btn:hover {
+  border-color: var(--accent); background: rgba(0, 255, 204, 0.15); transform: translateY(-4px) scale(1.02);
+}
+.opt-letter {
+  flex-shrink: 0; width: 32px; height: 32px; background: rgba(255,255,255,0.1); border: 2px solid var(--border);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+  font-weight: 900; font-family: var(--font-mono); color: var(--accent);
+}
+</style>
+</head>
+<body>
+
+  <div class="ambient-layer">
+    <span class="floating-icon" style="left: 10%; animation-duration: 15s; animation-delay: 0s;">💻</span>
+    <span class="floating-icon" style="left: 30%; animation-duration: 20s; animation-delay: 2s;">🌐</span>
+    <span class="floating-icon" style="left: 50%; animation-duration: 18s; animation-delay: 5s;">🤖</span>
+    <span class="floating-icon" style="left: 70%; animation-duration: 22s; animation-delay: 1s;">🔒</span>
+    <span class="floating-icon" style="left: 90%; animation-duration: 16s; animation-delay: 4s;">🧠</span>
+  </div>
+
+  <!-- ══════════════════════════════════
+     PANTALLA 1: LOGIN / NICK
+  ══════════════════════════════════ -->
+  <div id="screenNick" class="screen active">
+    <div class="nick-card">
+      <div class="nick-logo">💻</div>
+      <h1 class="nick-title">Hard<span>Quest</span></h1>
+      <p class="nick-sub">Domina el Hardware y las Redes de Computadoras superando misiones interacticas.</p>
+      
+      <input type="text" id="nickInput" class="nick-input" placeholder="Ingresa tu nombre técnico..." autocomplete="off">
+      <button class="primary-btn" onclick="login()">Iniciar Sistema</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+     PANTALLA 2: HOME / MUNDOS
+  ══════════════════════════════════ -->
+  <div id="screenHome" class="screen">
+    <header class="home-header">
+      <div class="brand">
+        <span class="brand-icon">🔧</span>
+        <span class="brand-name">Hard<span>Quest</span></span>
+      </div>
+      <div class="header-controls">
+        <div class="nick-display" id="playerNameDisplay">Jugador</div>
+        <div class="nick-display" style="border-color: var(--java); color: var(--java);"><span id="scoreDisplay">0</span> XP</div>
+        <!-- Botón Ranking -->
+        <button class="ctrl-btn" onclick="showScreen('screenRanking')" title="Ver Ranking">🏆</button>
+        <!-- Botón Créditos -->
+        <button class="ctrl-btn" onclick="showScreen('screenCredits')" title="Ver Créditos">ℹ️</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1 class="hero-title">Conviértete en un <br><span class="java-color">Maestro</span> del PC</h1>
+      <p class="hero-desc">Explora el interior de las computadoras, comprende las redes y soluciona problemas técnicos en esta aventura educativa diseñada para futuros expertos.</p>
+    </section>
+
+    <div class="section-header">
+      <h2>Módulos de Entrenamiento</h2>
+    </div>
+
+    <div class="worlds-grid">
+      <!-- MUNDO 1 -->
+      <div class="world-card" style="--wc: var(--java);" onclick="startWorld(1)">
+        <div class="world-number">Módulo 01</div>
+        <span class="world-icon-wrap">🧮</span>
+        <h3 class="world-name">Anatomía del PC</h3>
+        <p class="world-desc">Identifica los componentes fundamentales: CPU, Memoria RAM, Placa Base y Almacenamiento.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+
+      <!-- MUNDO 2 -->
+      <div class="world-card" style="--wc: var(--accent2);" onclick="startWorld(2)">
+        <div class="world-number">Módulo 02</div>
+        <span class="world-icon-wrap">🌐</span>
+        <h3 class="world-name">Redes y Conexiones</h3>
+        <p class="world-desc">Aprende sobre topologías de red, direcciones IP y cómo se comunican las computadoras.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+
+      <!-- MUNDO 3 -->
+      <div class="world-card" style="--wc: #9c27b0;" onclick="startWorld(3)">
+        <div class="world-number">Módulo 03</div>
+        <span class="world-icon-wrap">🖥️</span>
+        <h3 class="world-name">Sistemas Operativos</h3>
+        <p class="world-desc">Descubre el software base que administra los recursos de tu hardware. Windows, Linux, y más.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+
+      <!-- MUNDO 4 -->
+      <div class="world-card" style="--wc: var(--accent4);" onclick="startWorld(4)">
+        <div class="world-number">Módulo 04</div>
+        <span class="world-icon-wrap">🔒</span>
+        <h3 class="world-name">Ciberseguridad</h3>
+        <p class="world-desc">Aprende a proteger la información, detectar amenazas como Phishing y usar contraseñas seguras.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+
+      <!-- MUNDO 5 -->
+      <div class="world-card" style="--wc: #4caf50;" onclick="startWorld(5)">
+        <div class="world-number">Módulo 05</div>
+        <span class="world-icon-wrap">📚</span>
+        <h3 class="world-name">Tecnología Educativa</h3>
+        <p class="world-desc">Explora plataformas y recursos TIC que transforman la educación y el aprendizaje virtual.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+
+      <!-- MUNDO 6 -->
+      <div class="world-card" style="--wc: var(--accent);" onclick="startWorld(6)">
+        <div class="world-number">Módulo 06</div>
+        <span class="world-icon-wrap">🤖</span>
+        <h3 class="world-name">IA en el Aula</h3>
+        <p class="world-desc">Conoce cómo la Inteligencia Artificial asiste a estudiantes y profesores en tareas cotidianas.</p>
+        <button class="world-btn">Iniciar Misión <span>→</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+     PANTALLA 3: JUEGO (Misiones)
+  ══════════════════════════════════ -->
+  <div id="screenGame" class="screen">
+    <header class="home-header">
+      <div class="brand">
+        <span class="brand-name">Módulo <span id="gameWorldTitle">1</span></span>
+      </div>
+      <button class="ctrl-btn" onclick="showScreen('screenHome')" style="width: auto; padding: 0 1rem;">Abandonar</button>
+    </header>
+
+    <div class="lesson-wrap">
+      <div class="game-card">
+        <h2 class="lesson-title" id="questionTitle" style="font-size: 1.8rem; text-align: center;">Pregunta...</h2>
+        <p class="lesson-intro" id="questionDesc" style="text-align: center;">Selecciona la respuesta correcta para sumar 100 XP.</p>
+        
+        <div class="options-grid" id="optionsContainer">
+          <!-- Opciones inyectadas por JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+     PANTALLA 4: RANKING (Punto 4 Rúbrica)
+  ══════════════════════════════════ -->
+  <div id="screenRanking" class="screen">
+    <div class="lesson-wrap">
+      <button class="back-btn" onclick="showScreen('screenHome')">
+        <span>←</span> Volver al Menú
+      </button>
+      <h2 class="lesson-title"><span style="color: var(--java);">Top</span> Técnicos</h2>
+      <p class="lesson-intro">Progreso de los mejores jugadores guardado localmente (localStorage).</p>
+      
+      <div class="game-card" style="margin-top: 1rem; padding: 2rem;">
+        <div id="rankingList" class="match-col">
+          <!-- El ranking se genera aquí con JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+     PANTALLA 5: CRÉDITOS (Punto 6 Rúbrica)
+  ══════════════════════════════════ -->
+  <div id="screenCredits" class="screen">
+    <div class="lesson-wrap" style="text-align: center;">
+      <button class="back-btn" onclick="showScreen('screenHome')">
+        <span>←</span> Volver al Menú
+      </button>
+      
+      <div class="nick-card" style="margin: 0 auto;">
+        <h2 class="lesson-title" style="color: var(--accent); margin-bottom: 0.5rem;">Créditos</h2>
+        <p class="lesson-intro" style="margin-bottom: 2rem; font-size: 0.95rem;">Desarrollado con ❤️, alma y todo lo demás para el trabajo final.</p>
+        
+        <div class="concept-chip" style="margin-bottom: 1rem;">
+          <div class="c-name">Desarrollador / Estudiante</div>
+          <div class="c-desc" style="color: #fff; font-size: 1.1rem; font-weight: bold;">Juan "pecu" Agudelo</div>
+        </div>
+        
+        <div class="concept-chip" style="margin-bottom: 1rem;">
+          <div class="c-name">Asignatura</div>
+          <div class="c-desc">Tecnología Educativa</div>
+        </div>
+
+        <div class="concept-chip">
+          <div class="c-name">Institución</div>
+          <div class="c-desc">Universidad del Magdalena - 2026</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+     LÓGICA JAVASCRIPT
+  ══════════════════════════════════ -->
+  <script>
+    // --- NAVEGACIÓN Y PANTALLAS ---
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+
+      if(screenId === 'screenRanking') {
+        loadRanking();
+      }
+    }
+
+    // --- REGISTRO DE USUARIO (LocalStorage) ---
+    function login() {
+      const nickInput = document.getElementById('nickInput');
+      const nickName = nickInput.value.trim() || 'Técnico Anónimo';
+
+      let currentUser = {
+        nombre: nickName,
+        puntaje: 0
+      };
+      
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      document.getElementById('playerNameDisplay').innerText = nickName;
+      document.getElementById('scoreDisplay').innerText = "0";
+      
+      showScreen('screenHome');
+      saveToRanking(currentUser); // Guarda por primera vez
+    }
+
+    // --- SISTEMA DE PUNTOS Y RANKING ---
+    function addScore(points) {
+      let userStr = localStorage.getItem('currentUser');
+      if (userStr) {
+        let user = JSON.parse(userStr);
+        user.puntaje += points;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        document.getElementById('scoreDisplay').innerText = user.puntaje;
+        saveToRanking(user);
+      }
+    }
+
+    function saveToRanking(user) {
+      let ranking = JSON.parse(localStorage.getItem('hardQuestRanking')) || [];
+      let existingPlayer = ranking.find(p => p.nombre === user.nombre);
+      
+      if (existingPlayer) {
+        existingPlayer.puntaje = user.puntaje;
+      } else {
+        ranking.push(user);
+      }
+
+      ranking.sort((a, b) => b.puntaje - a.puntaje);
+      localStorage.setItem('hardQuestRanking', JSON.stringify(ranking));
+    }
+
+    function loadRanking() {
+      const rankingList = document.getElementById('rankingList');
+      let ranking = JSON.parse(localStorage.getItem('hardQuestRanking')) || [];
+      
+      rankingList.innerHTML = '';
+      if (ranking.length === 0) {
+        rankingList.innerHTML = '<p style="text-align:center; color:var(--accent2);">Aún no hay técnicos registrados.</p>';
+        return;
+      }
+
+      ranking.forEach((player, index) => {
+        let color = index === 0 ? 'var(--java)' : 'var(--text)';
+        const playerHTML = `
+          <div class="match-item" style="display: flex; justify-content: space-between; border-color: ${index === 0 ? 'var(--java)' : 'var(--border)'}">
+            <span style="color: ${color};"><strong>#${index + 1}</strong> ${player.nombre}</span>
+            <span style="color: var(--accent); font-family: var(--font-mono);">${player.puntaje} XP</span>
+          </div>
+        `;
+        rankingList.innerHTML += playerHTML;
+      });
+    }
+
+    // --- LÓGICA BÁSICA DEL JUEGO (MOCK) ---
+    const triviaData = {
+      1: {
+        title: "¿Qué componente es considerado el 'cerebro' de la computadora?",
+        options: ["Disco Duro", "Memoria RAM", "CPU (Procesador)", "Fuente de Poder"],
+        correctIndex: 2
+      },
+      2: {
+        title: "¿Qué significa la sigla 'IP' en redes de computadoras?",
+        options: ["Internet Protocol", "Internal Process", "Intranet Provider", "Input Protocol"],
+        correctIndex: 0
+      },
+      3: {
+        title: "¿Cuál es la función principal de un Sistema Operativo?",
+        options: ["Enfriar el procesador físicamente", "Administrar hardware y software", "Proteger la PC contra polvo", "Aumentar la memoria RAM"],
+        correctIndex: 1
+      },
+      4: {
+        title: "¿Qué es el 'Phishing' en Ciberseguridad?",
+        options: ["Una técnica para pescar en juegos online", "Un tipo de cable de red rápido", "Un antivirus de código abierto", "Engaño para robar datos confidenciales"],
+        correctIndex: 3
+      },
+      5: {
+        title: "¿Qué herramienta TIC es ideal para crear pizarras colaborativas?",
+        options: ["Microsoft Excel", "Miro o Google Jamboard", "VLC Media Player", "Notepad (Bloc de notas)"],
+        correctIndex: 1
+      },
+      6: {
+        title: "¿Qué tipo de IA se usa comúnmente en herramientas como ChatGPT?",
+        options: ["Enrutamiento BGP", "Algoritmos de ordenamiento", "Procesamiento de Lenguaje Natural (NLP)", "Bases de datos relacionales puras"],
+        correctIndex: 2
+      }
+    };
+
+    const moduleNames = {
+      1: "Hardware", 2: "Redes", 3: "Sistemas OS", 4: "Seguridad", 5: "Tec. Educativa", 6: "IA Escolar"
+    };
+
+    function startWorld(worldId) {
+      document.getElementById('gameWorldTitle').innerText = `0${worldId}: ${moduleNames[worldId]}`;
+      
+      const question = triviaData[worldId];
+      document.getElementById('questionTitle').innerText = question.title;
+      
+      const container = document.getElementById('optionsContainer');
+      container.innerHTML = '';
+      
+      const letters = ['A', 'B', 'C', 'D'];
+      question.options.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = `<span class="opt-letter">${letters[index]}</span> ${opt}`;
+        
+        btn.onclick = () => {
+          // Bloquear todos los botones al hacer clic
+          document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+
+          if(index === question.correctIndex) {
+            btn.style.borderColor = "var(--accent)";
+            btn.style.background = "rgba(0, 255, 204, 0.2)";
+            document.getElementById('questionDesc').innerText = "¡Correcto! Has ganado 100 XP.";
+            document.getElementById('questionDesc').style.color = "var(--accent)";
+            addScore(100);
+          } else {
+            btn.style.borderColor = "var(--accent4)";
+            btn.style.background = "rgba(255, 51, 102, 0.2)";
+            document.getElementById('questionDesc').innerText = "Incorrecto. Estudia un poco más sobre este tema.";
+            document.getElementById('questionDesc').style.color = "var(--accent4)";
+          }
+          
+          setTimeout(() => {
+            // Restaurar estilo y mensaje
+            document.getElementById('questionDesc').style.color = "var(--text-muted)";
+            document.getElementById('questionDesc').innerText = "Selecciona la respuesta correcta para sumar 100 XP.";
+            showScreen('screenHome');
+          }, 2000);
+        };
+        container.appendChild(btn);
+      });
+
+      showScreen('screenGame');
+    }
+  </script>
+</body>
+</html>
